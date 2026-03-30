@@ -2,62 +2,47 @@
 
 Symfony 8.0 application for managing CarPlay/Android Auto MMI firmware downloads. Replaces the static firmware download page at bimmer-tech.net with a database-backed admin panel, allowing non-technical staff to add and manage software versions without developer involvement.
 
-## System Requirements
+## Prerequisites
 
-- PHP 8.4+ with extensions: `pdo_mysql`, `ctype`, `iconv`, `mbstring`, `xml`
-- MySQL 8.0+
-- Composer 2.x
-- (Optional) Docker & Docker Compose for the database
+- Docker & Docker Compose
 
-## Quick Setup
+That's it. Everything runs in containers.
 
-### 1. Install dependencies
+## Getting Started
 
-```bash
-composer install
-```
-
-### 2. Configure the database
-
-Copy and edit the environment file:
+### 1. Clone the repository
 
 ```bash
-cp .env .env.local
+git clone git@github.com:MuhammadSulman/firmware-download-task.git
+cd firmware-download-task
 ```
 
-Edit `.env.local` and set your MySQL credentials:
+### 2. Configure environment
 
-```
-DATABASE_URL="mysql://YOUR_USER:YOUR_PASSWORD@127.0.0.1:3306/carplay_firmware?serverVersion=8.0.32&charset=utf8mb4"
-```
-
-### 3. Create the database and load data
-
-**Option A: Using the SQL file (recommended)**
+Copy the example env file and set your app secret:
 
 ```bash
-mysql -u YOUR_USER -p < setup.sql
+cp .env.example .env.dev
 ```
 
-This creates the database, tables, and seeds all existing software versions in one step.
+Edit `.env.dev` and set `APP_SECRET` to a random string.
 
-**Option B: Using Symfony commands**
+### 3. Start the application
 
 ```bash
-php bin/console doctrine:database:create
-php bin/console doctrine:schema:create
-php bin/console app:seed-data
+docker compose up -d --build
 ```
 
-### 4. Create an admin user
+This starts three containers:
+- **php** — PHP 8.4 FPM with all required extensions
+- **nginx** — Web server on port 8080
+- **database** — MySQL 8.0 (seeded automatically from `setup.sql`)
 
-If you used **Option A** (SQL file), it does not include an admin user because passwords must be hashed by PHP. Run:
+### 4. Seed the admin user
 
 ```bash
-php bin/console app:seed-data
+docker compose exec php php bin/console app:seed-data
 ```
-
-If you used **Option B**, this was already done in step 3.
 
 This creates a default admin user:
 
@@ -66,29 +51,53 @@ This creates a default admin user:
 
 > Change the default password after first login via the Admin Users section.
 
-### 5. Start the development server
+### 5. Open the application
 
-```bash
-php -S localhost:8000 -t public
-```
-
-The application is now running at http://localhost:8000.
+The app is now running at **http://localhost:8080**
 
 ## URLs
 
 | Page | URL |
 |------|-----|
-| Home (redirects to download page) | http://localhost:8000/ |
-| Software Download (customer page) | http://localhost:8000/carplay/software-download |
-| Admin Login | http://localhost:8000/login |
-| Admin Panel | http://localhost:8000/admin |
-| API Endpoint | `POST` http://localhost:8000/api/carplay/software/version |
+| Home (redirects to download page) | http://localhost:8080/ |
+| Software Download (customer page) | http://localhost:8080/carplay/software-download |
+| Admin Login | http://localhost:8080/login |
+| Admin Panel | http://localhost:8080/admin |
+| API Endpoint | `POST` http://localhost:8080/api/carplay/software/version |
+
+## Docker Commands
+
+```bash
+# Start containers
+docker compose up -d
+
+# Stop containers
+docker compose down
+
+# View logs
+docker compose logs -f
+
+# Run Symfony commands
+docker compose exec php php bin/console <command>
+```
+
+## Database Access
+
+If you have a MySQL client (e.g., MySQL Workbench), connect with:
+
+- **Host:** 127.0.0.1
+- **Port:** 3307
+- **Database:** carplay_firmware
+- **User:** root
+- **Password:** root
+
+> Port is 3307 (not 3306) to avoid conflicts with a local MySQL installation.
 
 ## Managing Software Versions (Admin Panel)
 
 ### Login
 
-Go to http://localhost:8000/login and sign in with your admin credentials.
+Go to http://localhost:8080/login and sign in with your admin credentials.
 
 ### Viewing versions
 
@@ -126,7 +135,7 @@ The API endpoint works identically to the original page at `bimmer-tech.net/api2
 ### Request
 
 ```bash
-curl -X POST http://localhost:8000/api/carplay/software/version \
+curl -X POST http://localhost:8080/api/carplay/software/version \
   -H "Content-Type: application/json" \
   -d '{"version": "3.3.6.mmipri.c", "hwVersion": "CPAA_2024.01.15"}'
 ```
@@ -206,7 +215,9 @@ config/
     security.yaml                          - Authentication & access control
     ...                                    - Other Symfony bundle configs
 setup.sql                                  - Complete DB setup with all seed data
-compose.yaml                               - Docker Compose for database (PostgreSQL)
+Dockerfile                                 - PHP 8.4 FPM container
+compose.yaml                               - Docker Compose (PHP, Nginx, MySQL)
+docker/nginx/default.conf                  - Nginx configuration for Symfony
 ```
 
 ## Troubleshooting
@@ -214,3 +225,5 @@ compose.yaml                               - Docker Compose for database (Postgr
 - **"Access Denied" on admin pages**: Make sure you are logged in at `/login` with an account that has `ROLE_ADMIN`.
 - **Seed command says versions already exist**: The `app:seed-data` command skips seeding if software versions are already present. To re-seed, truncate the `software_version` table first.
 - **Wrong firmware shown to customer**: Check that `system_version_alt` matches what customers enter (no "v" prefix). The system enforces one latest version per product line automatically, but you can verify in the admin panel by filtering by product line and checking the "Latest" column.
+- **Port 3306 conflict**: The Docker MySQL runs on port 3307 to avoid conflicts with a local MySQL installation.
+- **Containers not starting**: Run `docker compose logs` to check for errors. Ensure ports 8080 and 3307 are free.
