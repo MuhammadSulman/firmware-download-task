@@ -30,8 +30,8 @@ class DashboardController extends AbstractDashboardController
     public function configureMenuItems(): iterable
     {
         yield MenuItem::linkToDashboard('Dashboard', 'fa fa-home');
-        yield MenuItem::linkToCrud('Software Versions', 'fa fa-microchip', SoftwareVersion::class);
-        yield MenuItem::linkToCrud('Admin Users', 'fa fa-users', AdminUser::class);
+        yield MenuItem::linkTo(SoftwareVersionCrudController::class, 'Software Versions', 'fa fa-microchip');
+        yield MenuItem::linkTo(AdminUserCrudController::class, 'Admin Users', 'fa fa-users');
         yield MenuItem::linkToRoute('Software Download Page', 'fa fa-download', 'software_download');
     }
 }
